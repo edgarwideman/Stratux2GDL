@@ -1,26 +1,22 @@
-#-------------------------------------------------
-#
-# Project created by QtCreator 2018-01-04T19:26:13
-#
-#-------------------------------------------------
-QT += core websockets network bluetooth
+QT += core network bluetooth websockets
 QT -= gui
-CONFIG += c++11
-TARGET = Stratux2GDL39
-CONFIG += console
+
+CONFIG += c++11 console
 CONFIG -= app_bundle
+
+TARGET = Stratux2GDL39
 TEMPLATE = app
-DEFINES += QT_DEPRECATED_WARNINGS
-INCLUDEPATH += ./include
-VPATH += ./include
+
+# Adjust this path if you want to install it elsewhere
 target.path = /home/pi/Stratux2GDL39
 INSTALLS += target
+
 SOURCES += \
     main.cpp \
     StreamReader.cpp \
-    TrafficMath.cpp \
     Translator.cpp
+
 HEADERS += \
-    StratuxStreams.h \
     StreamReader.h \
-    Translator.h
+    Translator.h \
+    StubTypes.h

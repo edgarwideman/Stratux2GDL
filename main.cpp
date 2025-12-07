@@ -1,23 +1,28 @@
 #include <QCoreApplication>
-
+#include <QDebug>
 #include "Translator.h"
 
-int main( int argc, char *argv[] )
+int main(int argc, char *argv[])
 {
-    QCoreApplication coreApp( argc, argv );
-    Translator       trans;
+    QCoreApplication coreApp(argc, argv);
+    
+    QCoreApplication::setOrganizationName("Edgar Wideman");
+    QCoreApplication::setApplicationName("Stratux2GDL39");
 
-    Q_UNUSED( trans )
+    qDebug() << "------------------------------------------";
+    qDebug() << " Stratux2GDL39 Service Starting";
+    qDebug() << " Note: Ensure you run with 'sudo' to set BT name";
+    qDebug() << "------------------------------------------";
 
-    QCoreApplication::setOrganizationName( "Unexploded Minds" );
-    QCoreApplication::setOrganizationDomain( "unexplodedminds.com" );
-    QCoreApplication::setApplicationName( "Stratux2GDL39" );
+    // Attempt to set name to "GDL 39" so Garmin pilot recognizes it
+    // The spaces are important for some versions of the app.
+    // Try "GDL 39" or "GDL39"
+    int res = system("hciconfig hci0 name 'GDL 39'");
+    if(res != 0) qDebug() << "Warning: Failed to set BT name. Manual setup may be required.";
+    
+    system("hciconfig hci0 piscan"); // Make discoverable
 
-    qDebug() << "\nStratux2GDL39 (c) 2018 Unexploded Minds, modified 2025\n";
-
-    // Set Bluetooth device name and make discoverable (run with sudo if needed)
-    system("hciconfig hci0 name 'GDL 39'");
-    system("hciconfig hci0 piscan");
+    Translator trans;
 
     return coreApp.exec();
 }

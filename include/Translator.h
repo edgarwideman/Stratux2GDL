@@ -2,44 +2,47 @@
 #define TRANSLATOR_H
 
 #include <QObject>
-#include <QTimer>
-#include <QDateTime>
 #include <QBluetoothServer>
 #include <QBluetoothSocket>
+#include <QTimer>
+#include <QDateTime>
+#include "StubTypes.h"
 
 class StreamReader;
 
-class Translator : QObject
+class Translator : public QObject
 {
     Q_OBJECT
 
 public:
-    Translator();
+    explicit Translator();
     ~Translator();
 
+private slots:
+    // Slots for StreamReader (Currently unused stubs)
+    void situation(StratuxSituation s);
+    void traffic(int iICAO, StratuxTraffic t);
+    void status(bool bStratux, bool bAHRS, bool bGPS);
+
+    // Bluetooth slots
+    void newConnection();
+    void socketDisconnected();
+    void readyRead();
+
+protected:
+    void timerEvent(QTimerEvent *pEvent) override;
+
 private:
-    StreamReader *m_pStreamReader;
+    void sendDummyHeartbeat();
+    QByteArray buildGDL90(quint8 msgId, const QByteArray &payload);
+    quint16 crc16(const char *data, int len);
+
+    StreamReader     *m_pStreamReader;
     QBluetoothServer *m_pServer;
     QBluetoothSocket *m_pSocket;
-    bool m_bAHRS;
-    bool m_bGPS;
-    bool m_bStratux;
-    bool m_bSendStream;
-    QDateTime m_lastStatusUpdate;
-    int m_iRoutineTimer;
 
-    QByteArray buildGDL90(byte id, QByteArray data);
-    unsigned short crc16(const char* data, int length);
-    void sendDummyHeartbeat();
-
-private slots:
-    void status( bool bStratux, bool bAHRS, bool bGPS );
-    void timerEvent( QTimerEvent *pEvent );
-    void situation( StratuxSituation s );
-    void traffic( int iICAO, StratuxTraffic t );
-    void newConnection();
-    void readyRead();
-    void disconnected();
+    int               m_iRoutineTimer;
+    bool              m_bSendStream;
 };
 
 #endif // TRANSLATOR_H
