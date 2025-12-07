@@ -8,8 +8,8 @@
 Translator::Translator()
     : QObject(nullptr),
       m_pStreamReader(new StreamReader(this)),
-      // FIX 1: Use Rfcomm protocol instead of UUID here
-      m_pServer(new QBluetoothServer(QBluetoothServiceInfo::Rfcomm, this)),
+      // FIX: Added 'Protocol::' scope for the Raspberry Pi compiler
+      m_pServer(new QBluetoothServer(QBluetoothServiceInfo::Protocol::Rfcomm, this)),
       m_pSocket(nullptr),
       m_bSendStream(false)
 {
@@ -21,14 +21,13 @@ Translator::Translator()
     // Start Bluetooth Server
     connect(m_pServer, &QBluetoothServer::newConnection, this, &Translator::newConnection);
     
-    // FIX 2: listen returns a QBluetoothServiceInfo object, not a bool.
-    // We request the SerialPort service class (SPP)
+    // Listen for Serial Port Profile (SPP) connections
     QBluetoothServiceInfo serviceInfo = m_pServer->listen(QBluetoothUuid::SerialPort);
     
     if (serviceInfo.isValid()) {
         qDebug() << "Bluetooth Listening as GDL39 on Channel" << m_pServer->serverPort();
         
-        // Register the service name and description explicitly to help Garmin find it
+        // Register the service name so Garmin Pilot sees "GDL 39"
         serviceInfo.setAttribute(QBluetoothServiceInfo::ServiceName, "GDL 39");
         serviceInfo.setAttribute(QBluetoothServiceInfo::ServiceDescription, "Garmin GDL 39 Emulation");
         serviceInfo.setAttribute(QBluetoothServiceInfo::ServiceProvider, "Unexploded Minds");
@@ -54,8 +53,6 @@ Translator::~Translator()
 
 void Translator::newConnection()
 {
-    // If we already have a connection, ignore new ones or drop old one.
-    // For simplicity, we take the new one.
     if (m_pSocket) {
         m_pSocket->disconnectFromService();
         m_pSocket->deleteLater();
@@ -82,9 +79,8 @@ void Translator::socketDisconnected()
 void Translator::readyRead()
 {
     if (!m_pSocket) return;
-    QByteArray data = m_pSocket->readAll();
-    // In the future, handle configuration commands here
-    // qDebug() << "RX:" << data.toHex();
+    // Just read and clear the buffer for now
+    m_pSocket->readAll();
 }
 
 void Translator::timerEvent(QTimerEvent *pEvent)
@@ -100,18 +96,14 @@ void Translator::timerEvent(QTimerEvent *pEvent)
 void Translator::sendDummyHeartbeat()
 {
     // GDL90 Heartbeat Message (ID 0x00)
-    // Byte 1: Status Byte 1. 0x81 = (Initialized | Battery Low/Ok) - setting top bit is important
-    // Byte 2: Status Byte 2. 0x00
-    // Byte 3-4: Timestamp (optional in some implementations, 0 is fine)
-    // Byte 5-6: Message Counts (optional)
-    
+    // 0x81 = Initialized
     QByteArray payload;
-    payload.append((char)0x81); // Status: System Initialized
-    payload.append((char)0x00); // Status 2
+    payload.append((char)0x81); // Status Byte 1
+    payload.append((char)0x00); // Status Byte 2
     payload.append((char)0x00); // Time LSB
     payload.append((char)0x00); // Time MSB
-    payload.append((char)0x00); // Count
-    payload.append((char)0x00); // Count
+    payload.append((char)0x00); // Msg Count
+    payload.append((char)0x00); // Msg Count
 
     QByteArray packet = buildGDL90(0x00, payload);
     m_pSocket->write(packet);
@@ -121,10 +113,9 @@ void Translator::sendDummyHeartbeat()
 // GDL90 PROTOCOL HELPERS
 // ---------------------------------------------------------
 
-// Standard CRC16-CCITT tableless implementation
 quint16 Translator::crc16(const char *data, int len)
 {
-    quint16 crc = 0; // GDL90 starts with 0
+    quint16 crc = 0;
     for(int i = 0; i < len; ++i) {
         crc ^= ((quint16)data[i] << 8);
         for(int j = 0; j < 8; ++j) {
@@ -143,14 +134,11 @@ QByteArray Translator::buildGDL90(quint8 msgId, const QByteArray &payload)
     msg.append((char)msgId);
     msg.append(payload);
 
-    // Calculate CRC on the raw message (ID + Payload)
     quint16 crc = crc16(msg.constData(), msg.size());
     
-    // Append CRC (Little Endian for GDL90)
-    msg.append(crc & 0xFF);
-    msg.append((crc >> 8) & 0xFF);
+    msg.append(crc & 0xFF);        // CRC Low
+    msg.append((crc >> 8) & 0xFF); // CRC High
 
-    // Perform Byte Stuffing (Escaping)
     QByteArray escapedMsg;
     escapedMsg.append((char)0x7E); // Start Flag
 
@@ -165,7 +153,6 @@ QByteArray Translator::buildGDL90(quint8 msgId, const QByteArray &payload)
     }
 
     escapedMsg.append((char)0x7E); // End Flag
-
     return escapedMsg;
 }
 
