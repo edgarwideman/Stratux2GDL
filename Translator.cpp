@@ -8,8 +8,8 @@
 Translator::Translator()
     : QObject(nullptr),
       m_pStreamReader(new StreamReader(this)),
-      // FIX: Correct Enum access for Qt 5
-      m_pServer(new QBluetoothServer(QBluetoothServiceInfo::Rfcomm, this)),
+      // FIX: The correct enum for this Qt version is RfcommProtocol
+      m_pServer(new QBluetoothServer(QBluetoothServiceInfo::RfcommProtocol, this)),
       m_pSocket(nullptr),
       m_bSendStream(false)
 {
@@ -22,7 +22,7 @@ Translator::Translator()
     connect(m_pServer, &QBluetoothServer::newConnection, this, &Translator::newConnection);
     
     // Listen for Serial Port Profile (SPP) connections
-    // This returns a serviceInfo object we can configure
+    // We pass the SPP UUID to the listen function
     QBluetoothServiceInfo serviceInfo = m_pServer->listen(QBluetoothUuid::SerialPort);
     
     if (serviceInfo.isValid()) {
@@ -54,6 +54,7 @@ Translator::~Translator()
 
 void Translator::newConnection()
 {
+    // If we already have a connection, ignore new ones or drop old one.
     if (m_pSocket) {
         m_pSocket->disconnectFromService();
         m_pSocket->deleteLater();
@@ -80,7 +81,8 @@ void Translator::socketDisconnected()
 void Translator::readyRead()
 {
     if (!m_pSocket) return;
-    // Just read and clear the buffer for now
+    // Just read and clear the buffer for now. 
+    // Handshake logic can be added here later if needed.
     m_pSocket->readAll();
 }
 
