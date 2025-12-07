@@ -8,8 +8,8 @@
 Translator::Translator()
     : QObject(nullptr),
       m_pStreamReader(new StreamReader(this)),
-      // FIX: Added 'Protocol::' scope for the Raspberry Pi compiler
-      m_pServer(new QBluetoothServer(QBluetoothServiceInfo::Protocol::Rfcomm, this)),
+      // FIX: Correct Enum access for Qt 5
+      m_pServer(new QBluetoothServer(QBluetoothServiceInfo::Rfcomm, this)),
       m_pSocket(nullptr),
       m_bSendStream(false)
 {
@@ -22,6 +22,7 @@ Translator::Translator()
     connect(m_pServer, &QBluetoothServer::newConnection, this, &Translator::newConnection);
     
     // Listen for Serial Port Profile (SPP) connections
+    // This returns a serviceInfo object we can configure
     QBluetoothServiceInfo serviceInfo = m_pServer->listen(QBluetoothUuid::SerialPort);
     
     if (serviceInfo.isValid()) {
