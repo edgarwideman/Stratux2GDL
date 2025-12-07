@@ -1,16 +1,19 @@
-#include "Translator.h"
-#include "StreamReader.h"
+#include "include/Translator.h"
+#include "include/StreamReader.h"
 #include <QDebug>
 #include <QBluetoothLocalDevice>
+#include <QBluetoothServiceInfo>
+#include <QTimerEvent>
 
 Translator::Translator()
     : QObject(nullptr),
       m_pStreamReader(new StreamReader(this)),
-      m_pServer(new QBluetoothServer(QBluetoothUuid::SerialPort, this)),
+      // FIX 1: Use Rfcomm protocol instead of UUID here
+      m_pServer(new QBluetoothServer(QBluetoothServiceInfo::Rfcomm, this)),
       m_pSocket(nullptr),
       m_bSendStream(false)
 {
-    // Mock connections (won't fire in this version, but ready for later)
+    // Mock connections
     connect(m_pStreamReader, &StreamReader::newSituation, this, &Translator::situation);
     connect(m_pStreamReader, &StreamReader::newStatus, this, &Translator::status);
     connect(m_pStreamReader, &StreamReader::newTraffic, this, &Translator::traffic);
@@ -18,11 +21,20 @@ Translator::Translator()
     // Start Bluetooth Server
     connect(m_pServer, &QBluetoothServer::newConnection, this, &Translator::newConnection);
     
-    // Listen on SPP (Serial Port Profile)
-    bool listening = m_pServer->listen(QBluetoothUuid::SerialPort);
+    // FIX 2: listen returns a QBluetoothServiceInfo object, not a bool.
+    // We request the SerialPort service class (SPP)
+    QBluetoothServiceInfo serviceInfo = m_pServer->listen(QBluetoothUuid::SerialPort);
     
-    if (listening) {
+    if (serviceInfo.isValid()) {
         qDebug() << "Bluetooth Listening as GDL39 on Channel" << m_pServer->serverPort();
+        
+        // Register the service name and description explicitly to help Garmin find it
+        serviceInfo.setAttribute(QBluetoothServiceInfo::ServiceName, "GDL 39");
+        serviceInfo.setAttribute(QBluetoothServiceInfo::ServiceDescription, "Garmin GDL 39 Emulation");
+        serviceInfo.setAttribute(QBluetoothServiceInfo::ServiceProvider, "Unexploded Minds");
+        
+        // Register the service
+        serviceInfo.registerService();
     } else {
         qDebug() << "Failed to start Bluetooth listener. Check hardware/permissions.";
     }
